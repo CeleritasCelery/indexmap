@@ -518,6 +518,25 @@ where
     {
         Splice::new(self, range, replace_with.into_iter())
     }
+
+    /// Update the hash keys and rebuild the IndexMap with the new values.
+    pub fn rehash_keys<F>(&mut self, mut map: F)
+    where
+        F: FnMut(&K, &V),
+        S: Clone,
+    {
+        let builder = self.hash_builder.clone();
+        self.with_entries(|entries| {
+            for entry in entries {
+                map(&entry.key, &entry.value);
+                // can't use self.hash because self is already mutable borrowed
+                let mut h = builder.build_hasher();
+                entry.key.hash(&mut h);
+                let hash = HashValue(h.finish() as usize);
+                entry.hash = hash;
+            }
+        })
+    }
 }
 
 impl<K, V, S> IndexMap<K, V, S>
